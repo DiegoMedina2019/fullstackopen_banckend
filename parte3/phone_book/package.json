@@ -1,0 +1,19 @@
+{
+  "name": "phone_book",
+  "version": "1.0.0",
+  "description": "backend par la parte 3 del curso phone book",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "diego medina",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.16"
+  }
+}
