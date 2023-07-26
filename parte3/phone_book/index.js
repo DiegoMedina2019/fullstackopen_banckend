@@ -1,6 +1,35 @@
 const express = require("express")
+const morgan = require('morgan')
+
 const app = express()
 app.use(express.json())
+
+morgan.token('type', function(req, res) {
+    return [
+      req.method,
+      req.url,
+      res.statusCode,
+      res.getHeader('content-length') || '-',
+      res.responseTime + 'ms'
+    ].join(' ');
+  });
+
+app.use(morgan(':type'))
+
+const myMiddlewareLogguer = (request,response,next) => {
+    console.log("Method: ",request.method)
+    console.log("Path: ",request.path)
+    console.log("Body: ",request.body)
+    
+    next()
+}
+// este podra ejecutarse solo si nunguna ruta atiende la peticion entrante (unknownEndPoint)
+const myDefaultMiddleware = (request,response) => {
+    response.status(404).send({error: 'unknown endpoint'})
+}
+
+// los middleware se ejecutan preferentemente antes de las rutas es lo primero y en el orden q se los llama
+// app.use(myMiddlewareLogguer)
 
 
 let persons = [
@@ -94,6 +123,8 @@ app.post('/api/persons',(request,response) => {
 
     response.json(person)
 })
+
+app.use(myDefaultMiddleware)
 
 
 const PORT = 3001
