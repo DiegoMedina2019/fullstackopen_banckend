@@ -98,28 +98,43 @@ app.post('/api/persons',(request,response,next) => {
         })
     }
 
-    Person.find({name:body.name}).maxTimeMS(20000).then(result => {
-        console.log(result);
-        if (result.length > 0) {
-            return response.status(400).json({ 
-                error: 'name must be unique' 
-            })
-        }else{
-            const person = {
-                name: body.name,
-                number: body.number || '',
-              }
+    const person = {
+        name: body.name,
+        number: body.number || '',
+    }
+    
+    const p = new Person(person)
+
+    p.save()
+        .then(savedPerson => savedPerson.toJSON())
+        .then(savedAndFormattedPerson => {
+            response.json(savedAndFormattedPerson)
+        }) 
+        .catch(error => next(error))
+
+    // Person.find({name:body.name}).maxTimeMS(20000).then(result => {
+    //     console.log(result);
+    //     if (result.length > 0) {
+    //         return response.status(400).json({ 
+    //             error: 'name must be unique' 
+    //         })
+    //     }else{
+    //         const person = {
+    //             name: body.name,
+    //             number: body.number || '',
+    //         }
             
-              const p = new Person(person)
-            
-              p.save().then(savedPerson => {
-                  console.log("saved person: ",savedPerson);
-                  response.json(savedPerson)
-              })
-              .catch(error => next(error))
-        }
-    })
-    .catch(error => next(error))
+    //         const p = new Person(person)
+        
+    //         p.save()
+    //             .then(savedPerson => savedPerson.toJSON())
+    //             .then(savedAndFormattedPerson => {
+    //                 response.json(savedAndFormattedPerson)
+    //             }) 
+    //             .catch(error => next(error))
+    //     }
+    // })
+    // .catch(error => next(error))
 
 
 })
@@ -132,7 +147,7 @@ app.put('/api/persons/:id', (request,response,next) =>{
         number: body.number || '',
     }
 
-    Person.findByIdAndUpdate(request.params.id, person, {new:true})
+    Person.findByIdAndUpdate(request.params.id, person, {new:true,runValidators:true})
         .then(updatePerson => {
             response.json(updatePerson)
         })
@@ -156,13 +171,15 @@ const errorHandler = (error, request, response, next) => {
     } 
     if (error.name === 'SyntaxError') {
         return response.status(400).send({ error: 'JSON malformatted' , msg: error.message})
-    } 
+    }
+    if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message })
+    }
   
     next(error) // lo demas errores pasa el default middleware de errores de express
   }
   
 app.use(errorHandler)
-
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT)
