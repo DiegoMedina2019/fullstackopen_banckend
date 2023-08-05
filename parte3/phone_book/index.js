@@ -27,48 +27,22 @@ const myMiddlewareLogguer = (request,response,next) => {
     
     next()
 }
-// este podra ejecutarse solo si nunguna ruta atiende la peticion entrante (unknownEndPoint)
-const myDefaultMiddleware = (request,response) => {
-    response.status(404).send({error: 'unknown endpoint'})
-}
 
 // los middleware se ejecutan preferentemente antes de las rutas es lo primero y en el orden q se los llama
 // app.use(myMiddlewareLogguer)
 
-
 const Person = require('./models/person')
 
-let persons = [
-    {
-        "name": "Arto Hellas",
-        "number": "040-123456",
-        "id": 1
-    },
-    {
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523",
-        "id": 2
-    },
-    {
-        "name": "Dan Abramov",
-        "number": "12-43-234345",
-        "id": 3
-    },
-    {
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122",
-        "id": 4
-    }
-]
 
 function getRandomInt(max = 5000) {
     return Math.floor(Math.random() * max);
 }
 
-app.get('/api/persons', (request, response) => {
+app.get('/api/persons', (request, response,next) => {
     Person.find({}).maxTimeMS(20000).then(personas => {
         response.json(personas)
     })
+    .catch(error => next(error))
 })
 app.get('/info', (request, response) => {
     var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
@@ -76,33 +50,40 @@ app.get('/info', (request, response) => {
     options.timeZoneName = 'short';
     let date = new Date();
 
-    const html =  `<h1>PhoneBook has info for ${persons.length} people</h1>
-                    <br/>
-                    <h4>${ date.toLocaleDateString(undefined, options) } ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}</h4>`
+    Person.find({}).maxTimeMS(20000).then(personas => {
+        const html =  `<h1>PhoneBook has info for ${personas.length} people</h1>
+        <br/>
+        <h4>${ date.toLocaleDateString(undefined, options) } ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}</h4>`
 
-    response.send(html)
-})
-
-app.get('/api/persons/:id', (request, response) => {
-    // const id = Number(request.params.id)
-    // const person = persons.find(person => person.id === id)
-    // if (person) {
-    //     response.json(person)
-    // }else{
-    //     response.status(404).end()
-    // }
-
-    Person.findById(request.params.id).then(person => {
-        response.json(person)
+        response.send(html)
     })
-})
-app.delete('/api/persons/:id',(request,response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
+    .catch(error => next(error))
 
-    response.status(204).end()
 })
-app.post('/api/persons',(request,response) => {
+
+app.get('/api/persons/:id', (request, response, next) => {
+
+    Person.findById(request.params.id)
+        .then(person => {
+            if (person) {
+                response.json(person)
+            }else{
+                response.status(404).end()
+            }
+        })
+        .catch(error => next(error))
+})
+app.delete('/api/persons/:id',(request,response, next) => {
+
+    Person.findByIdAndRemove(request.params.id)
+    .then(result => {
+        console.log("DELETE PERSON: ",result);
+      response.status(204).end()
+    })
+    .catch(error => next(error))
+
+})
+app.post('/api/persons',(request,response,next) => {
     const body = request.body
     console.log(body)
 
@@ -116,12 +97,6 @@ app.post('/api/persons',(request,response) => {
             error: 'number missing' 
         })
     }
-
-    // if ( persons.filter(p => p.name === body.name).length > 0) {
-    //     return response.status(400).json({ 
-    //       error: 'name must be unique' 
-    //     })
-    // }
 
     Person.find({name:body.name}).maxTimeMS(20000).then(result => {
         console.log(result);
@@ -141,13 +116,52 @@ app.post('/api/persons',(request,response) => {
                   console.log("saved person: ",savedPerson);
                   response.json(savedPerson)
               })
+              .catch(error => next(error))
         }
     })
+    .catch(error => next(error))
 
 
 })
 
+app.put('/api/persons/:id', (request,response,next) =>{
+    const body = request.body
+
+    const person = {
+        name: body.name,
+        number: body.number || '',
+    }
+
+    Person.findByIdAndUpdate(request.params.id, person, {new:true})
+        .then(updatePerson => {
+            response.json(updatePerson)
+        })
+        .catch(error => next(error))
+})
+
+
+// este podra ejecutarse solo si nunguna ruta atiende la peticion entrante (unknownEndPoint)
+const myDefaultMiddleware = (request,response) => {
+    response.status(404).send({error: 'unknown endpoint'})
+}
+
 app.use(myDefaultMiddleware)
+
+// creo otro middleware para controlar errores espesificos si lo deseo
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+  
+    if (error.name === 'CastError') {
+      return response.status(400).send({ error: 'malformatted id' })
+    } 
+    if (error.name === 'SyntaxError') {
+        return response.status(400).send({ error: 'JSON malformatted' , msg: error.message})
+    } 
+  
+    next(error) // lo demas errores pasa el default middleware de errores de express
+  }
+  
+app.use(errorHandler)
 
 
 const PORT = process.env.PORT || 3001
