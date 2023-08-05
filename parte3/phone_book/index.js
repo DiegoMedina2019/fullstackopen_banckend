@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require("express")
 const morgan = require('morgan')
 const cors = require('cors')
@@ -35,6 +36,8 @@ const myDefaultMiddleware = (request,response) => {
 // app.use(myMiddlewareLogguer)
 
 
+const Person = require('./models/person')
+
 let persons = [
     {
         "name": "Arto Hellas",
@@ -63,7 +66,9 @@ function getRandomInt(max = 5000) {
 }
 
 app.get('/api/persons', (request, response) => {
-    response.json(persons)
+    Person.find({}).maxTimeMS(20000).then(personas => {
+        response.json(personas)
+    })
 })
 app.get('/info', (request, response) => {
     var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
@@ -79,13 +84,17 @@ app.get('/info', (request, response) => {
 })
 
 app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
-    if (person) {
+    // const id = Number(request.params.id)
+    // const person = persons.find(person => person.id === id)
+    // if (person) {
+    //     response.json(person)
+    // }else{
+    //     response.status(404).end()
+    // }
+
+    Person.findById(request.params.id).then(person => {
         response.json(person)
-    }else{
-        response.status(404).end()
-    }
+    })
 })
 app.delete('/api/persons/:id',(request,response) => {
     const id = Number(request.params.id)
@@ -108,30 +117,39 @@ app.post('/api/persons',(request,response) => {
         })
     }
 
-    if ( persons.filter(p => p.name === body.name).length > 0) {
-        return response.status(400).json({ 
-          error: 'name must be unique' 
-        })
-    }
+    // if ( persons.filter(p => p.name === body.name).length > 0) {
+    //     return response.status(400).json({ 
+    //       error: 'name must be unique' 
+    //     })
+    // }
 
-    const person = {
-      name: body.name,
-      number: body.number || '',
-      id: getRandomInt(),
-    }
-  
-    persons = persons.concat(person)
-  
-    console.log(person);
+    Person.find({name:body.name}).maxTimeMS(20000).then(result => {
+        console.log(result);
+        if (result.length > 0) {
+            return response.status(400).json({ 
+                error: 'name must be unique' 
+            })
+        }else{
+            const person = {
+                name: body.name,
+                number: body.number || '',
+              }
+            
+              const p = new Person(person)
+            
+              p.save().then(savedPerson => {
+                  console.log("saved person: ",savedPerson);
+                  response.json(savedPerson)
+              })
+        }
+    })
 
-    response.json(person)
+
 })
 
 app.use(myDefaultMiddleware)
 
-/* 
-    me quede en la parte 3 de node, inciso (b) Implementación de la aplicación en Internet
-*/
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT)
 console.log(`Server running on port ${PORT}`)
