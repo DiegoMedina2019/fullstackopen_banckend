@@ -1,0 +1,29 @@
+{
+  "name": "list_blogs",
+  "version": "1.0.0",
+  "description": "app de lista de blogs que permite a usuarios guardar info sobre otros blogs de internet",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Diego Medina",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.1",
+    "mongoose": "^7.4.2",
+    "mongoose-unique-validator": "^4.0.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.46.0",
+    "nodemon": "^2.0.16"
+  },
+  "engines": {
+    "node": "18.14.2"
+  }
+}
