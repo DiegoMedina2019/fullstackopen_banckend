@@ -19,7 +19,7 @@ const blogSchema = new mongoose.Schema({
 })
 
 
-//   blogSchema.plugin(uniqueValidator)
+blogSchema.plugin(uniqueValidator) // sirve para que se utilicen las validaciones en el update si es que se espesifica desde el PUT-> findByIdAndUpdate(id,obj,{ new:true,runValidators:true })
 
 blogSchema.set('toJSON', {
   transform: (document, returnedObject) => {
