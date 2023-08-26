@@ -4,10 +4,27 @@ const helper = require('./test_helper')
 const app = require('../app')
 const api = supertest(app)
 const Blog = require('../models/blog')
+const User = require('../models/user')
+const bcrypt = require('bcrypt')
 
 beforeEach(async () => {
+
+  await User.deleteMany({})
+  const userObj = helper.initialUser
+  const saltRounds = 10
+  const passwordHash = await bcrypt.hash(userObj.password, saltRounds)
+  const user = new User({
+    username: userObj.username,
+    name: userObj.name,
+    passwordHash,
+  })
+  const savedUser = await user.save()
+
   await Blog.deleteMany({})
-  const BlogObjects = helper.initialBlogs.map( blog => new Blog(blog))
+  const BlogObjects = helper.initialBlogs.map( blog => {
+    blog.user = savedUser.id
+    return new Blog(blog)
+  })
   const promiseArray = BlogObjects.map( blog => blog.save())
   // nota: usar eso hace ejecutar las promesas de forma paralela.
   await Promise.all(promiseArray)
@@ -16,6 +33,9 @@ beforeEach(async () => {
   //   let blogObject = new Blog(blog)
   //   await blogObject.save()
   // }
+
+
+
 })
 
 
@@ -52,6 +72,16 @@ test('a specific blog is within the returned blogs', async () => {
 })
 
 test('a valid blog can be added', async () => {
+
+  const user = helper.initialUser
+
+  const { body } = await api
+    .post('/api/login')
+    .send(user)
+    .expect(200)
+
+  const token = body.token
+
   const newBlog = {
     title: 'async/await simplifies making async calls',
     author: 'DiegoSM',
@@ -61,6 +91,7 @@ test('a valid blog can be added', async () => {
 
   await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(200)
     .expect('Content-Type', /application\/json/)
@@ -74,6 +105,16 @@ test('a valid blog can be added', async () => {
 })
 
 test('if the likes property is missing, its default value is 0', async () => {
+
+  const user = helper.initialUser
+
+  const login = await api
+    .post('/api/login')
+    .send(user)
+    .expect(200)
+
+  const token = login.body.token
+
   const newBlog = {
     title: 'algun titulo',
     author: 'autorX',
@@ -82,6 +123,7 @@ test('if the likes property is missing, its default value is 0', async () => {
 
   const { body } = await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(200)
     .expect('Content-Type', /application\/json/)
@@ -93,6 +135,16 @@ test('if the likes property is missing, its default value is 0', async () => {
 })
 
 test('blog without title or url is not added', async () => {
+
+  const user = helper.initialUser
+
+  const login = await api
+    .post('/api/login')
+    .send(user)
+    .expect(200)
+
+  const token = login.body.token
+
   const newblog = {
     // title:'algun titulo',
     author: 'DiegoSM',
@@ -102,6 +154,7 @@ test('blog without title or url is not added', async () => {
 
   await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newblog)
     .expect(400)
 
@@ -129,8 +182,18 @@ test('a blog can be deleted', async () => {
   const blogsAtStart = await helper.blogsInDb()
   const blogToDelete = blogsAtStart[0]
 
+  const user = helper.initialUser
+
+  const login = await api
+    .post('/api/login')
+    .send(user)
+    .expect(200)
+
+  const token = login.body.token
+
   await api
     .delete(`/api/blogs/${blogToDelete.id}`)
+    .set('Authorization', `Bearer ${token}`)
     .expect(204)
 
   const blogsAtEnd = await helper.blogsInDb()
@@ -153,6 +216,26 @@ test('a blog can be update', async () => {
     .expect(200)
 
   expect(body.likes).toBe(2)
+
+})
+
+test('should reply 401 without a token', async () => {
+
+  const newBlog = {
+    title: 'fallo sin token',
+    author: 'DiegoSM',
+    url: 'http://www.async-await.com',
+    likes: 2
+  }
+
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(401)
+    .expect('Content-Type', /application\/json/)
+
+  const blogsAtEnd = await helper.blogsInDb()
+  expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length)
 
 })
 
